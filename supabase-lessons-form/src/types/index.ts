@@ -29,6 +29,8 @@ export interface FormData {
   assessment: string;
   refs: string;
   uploaded_by: string;
+  user_name: string;
+  user_email: string;
 }
 
 export interface JsonValidation {
@@ -47,4 +49,19 @@ export interface User {
   name: string;
   email: string;
   created_at?: string;
+}
+
+export interface CurriculumGroup {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
+
+export interface LessonFile {
+  id?: string;
+  lesson_id?: string;
+  file_url: string;
+  file_type: string;
+  uploaded_at?: string;
 }

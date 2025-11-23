@@ -1,22 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import './App.css';
 import JsonField from './components/JsonField';
 import StatusMessage from './components/StatusMessage';
-import { FormData, JsonValidation, Status, Lesson } from './types';
+import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User } from './types';
 
-// Initialize Supabase client with environment variables
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// Initialize Supabase client
+const supabaseUrl = 'https://cycfjdvszpctjxoosspf.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Y2ZqZHZzenBjdGp4b29zc3BmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwODc2NzUsImV4cCI6MjA3NDY2MzY3NX0.9VBTKLLkoaDx3Z6g7iyohsjmJHAK6xCzrE7cX1E8ftk';
 
-const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
-    id: '',
+    id: uuidv4(), // Auto-generate ID on load
     title: '',
     curriculum_group_id: '',
     subject: '',
@@ -28,7 +26,9 @@ const App: React.FC = () => {
     application: '',
     assessment: '',
     refs: '',
-    uploaded_by: ''
+    uploaded_by: '',
+    user_name: '',
+    user_email: ''
   });
 
   const [jsonValidation, setJsonValidation] = useState<JsonValidation>({
@@ -39,8 +39,53 @@ const App: React.FC = () => {
 
   const [status, setStatus] = useState<Status>({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [curriculumGroups, setCurriculumGroups] = useState<CurriculumGroup[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [existingUserId, setExistingUserId] = useState<string>('');
+  const [userMode, setUserMode] = useState<'existing' | 'new'>('existing');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Fetch curriculum groups and users on component mount
+  useEffect(() => {
+    fetchCurriculumGroups();
+    fetchUsers();
+  }, []);
+
+  const fetchCurriculumGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('curriculum_groups')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching curriculum groups:', error);
+      } else {
+        setCurriculumGroups(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch curriculum groups:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching users:', error);
+      } else {
+        setUsers(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -59,18 +104,86 @@ const App: React.FC = () => {
     }));
   };
 
-  const generateUuid = () => {
-    const newId = uuidv4();
-    setFormData(prev => ({
-      ...prev,
-      id: newId
-    }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length > 10) {
+      setStatus({
+        type: 'error',
+        message: 'Maximum 10 files allowed'
+      });
+      return;
+    }
+    setFiles(selectedFiles);
   };
 
-  const handleIdFocus = () => {
-    if (!formData.id.trim()) {
-      generateUuid();
-    }
+  const uploadFiles = async (lessonId: string) => {
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        // Create a simple, clean file path
+        const timestamp = Date.now();
+        const fileExt = file.name.split('.').pop() || 'bin';
+        // Very simple sanitization - just alphanumeric and dash
+        const sanitizedName = file.name
+          .replace(/\.[^/.]+$/, '') // Remove extension
+          .replace(/[^a-zA-Z0-9]/g, '-') // Replace all non-alphanumeric with dash
+          .replace(/-+/g, '-') // Replace multiple dashes with single
+          .replace(/^-|-$/g, '') // Remove leading/trailing dashes
+          .substring(0, 50); // Shorter limit
+
+        // Simple file path without subfolder initially to test
+        const fileName = `${timestamp}_${index}_${sanitizedName}.${fileExt}`;
+
+        console.log(`Attempting to upload file: ${file.name} as ${fileName}`);
+
+        // Upload file to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('lesson-files') // Using 'lesson-files' bucket
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error(`Error uploading file ${file.name} to storage:`, uploadError);
+          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        }
+
+        console.log(`File uploaded successfully: ${fileName}`);
+        console.log('Upload response:', uploadData);
+
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('lesson-files')
+          .getPublicUrl(fileName);
+
+        console.log(`Public URL: ${urlData.publicUrl}`);
+
+        // Store file reference in database with original filename in file_type
+        const { error: dbError } = await supabase
+          .from('lesson_files')
+          .insert({
+            lesson_id: lessonId,
+            file_url: urlData.publicUrl,
+            file_type: file.type || 'application/octet-stream' // Simplified - just store MIME type
+          });
+
+        if (dbError) {
+          console.error('Error storing file reference in database:', dbError);
+          // Try to delete the uploaded file if database insert fails
+          await supabase.storage
+            .from('lesson-files')
+            .remove([fileName]);
+          throw dbError;
+        }
+
+        return true;
+      } catch (err) {
+        console.error('Error in file upload process:', err);
+        throw err;
+      }
+    });
+
+    await Promise.all(uploadPromises);
   };
 
   const validateJson = (jsonString: string): { valid: boolean; parsed: any } => {
@@ -86,19 +199,11 @@ const App: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!supabase) {
-      setStatus({
-        type: 'error',
-        message: 'Supabase configuration is missing. Please check your environment variables.'
-      });
-      return;
-    }
-
     // Validate required fields
-    if (!formData.id || !formData.title) {
+    if (!formData.title) {
       setStatus({
         type: 'error',
-        message: 'Please fill in all required fields (ID and Title).'
+        message: 'Please fill in the title field.'
       });
       return;
     }
@@ -117,24 +222,60 @@ const App: React.FC = () => {
     setStatus({ type: '', message: '' });
 
     try {
+      let userId = existingUserId;
+
+      // Handle user creation or selection
+      if (userMode === 'new') {
+        // Create new user if needed
+        if (formData.user_name && formData.user_email) {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .insert({
+              name: formData.user_name,
+              email: formData.user_email
+            })
+            .select()
+            .single();
+
+          if (userError) {
+            // Check if user already exists
+            if (userError.code === '23505') {
+              const { data: existingUser } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', formData.user_email)
+                .single();
+
+              if (existingUser) {
+                userId = existingUser.id;
+              }
+            } else {
+              throw userError;
+            }
+          } else if (userData) {
+            userId = userData.id;
+          }
+        }
+      }
+
       // Prepare data for submission
       const submitData: Partial<Lesson> = {
         id: formData.id,
         title: formData.title
       };
 
-      // Add optional fields (convert empty strings to undefined)
-      const optionalFields: Array<keyof FormData> = [
-        'curriculum_group_id', 'subject', 'target_audience',
-        'level', 'application', 'assessment', 'refs', 'uploaded_by'
-      ];
-
-      optionalFields.forEach(field => {
-        const value = formData[field];
-        if (value?.trim()) {
-          (submitData as any)[field] = value;
-        }
-      });
+      // Add optional fields
+      if (formData.curriculum_group_id) submitData.curriculum_group_id = formData.curriculum_group_id;
+      if (formData.subject?.trim()) submitData.subject = formData.subject;
+      if (formData.target_audience) submitData.target_audience = formData.target_audience;
+      if (formData.level) submitData.level = formData.level; // Don't trim - must match exact values
+      if (formData.application?.trim()) submitData.application = formData.application;
+      if (formData.assessment?.trim()) submitData.assessment = formData.assessment;
+      // Handle refs as array - split by newlines or commas
+      if (formData.refs?.trim()) {
+        submitData.refs = formData.refs.split(/[\n,]/).map(ref => ref.trim()).filter(ref => ref.length > 0) as any;
+      }
+      if (userId) submitData.uploaded_by = userId;
 
       // Parse and add JSON fields
       const jsonFields: Array<keyof JsonValidation> = ['learning_objectives', 'materials', 'teaching_activities'];
@@ -148,7 +289,7 @@ const App: React.FC = () => {
         }
       });
 
-      // Insert data into Supabase
+      // Insert lesson data
       const { data, error } = await supabase
         .from('lessons')
         .insert([submitData])
@@ -161,14 +302,35 @@ const App: React.FC = () => {
           message: `Error: ${error.message}`
         });
       } else {
-        setStatus({
-          type: 'success',
-          message: 'Lesson added successfully!'
-        });
+        // Upload files if any
+        if (files.length > 0) {
+          try {
+            setStatus({
+              type: '',
+              message: 'Uploading files...'
+            });
+            await uploadFiles(formData.id);
+            setStatus({
+              type: 'success',
+              message: `Lesson added successfully! ${files.length} file(s) uploaded.`
+            });
+          } catch (fileError: any) {
+            console.error('File upload error details:', fileError);
+            setStatus({
+              type: 'error',
+              message: `Lesson saved but file upload failed: ${fileError.message}. Please run the setup_storage.sql script in Supabase SQL Editor to configure storage policies.`
+            });
+          }
+        } else {
+          setStatus({
+            type: 'success',
+            message: 'Lesson added successfully!'
+          });
+        }
 
-        // Clear form
+        // Clear form and generate new ID
         setFormData({
-          id: '',
+          id: uuidv4(),
           title: '',
           curriculum_group_id: '',
           subject: '',
@@ -180,8 +342,15 @@ const App: React.FC = () => {
           application: '',
           assessment: '',
           refs: '',
-          uploaded_by: ''
+          uploaded_by: '',
+          user_name: '',
+          user_email: ''
         });
+        setFiles([]);
+        setExistingUserId('');
+
+        // Refresh users list
+        fetchUsers();
 
         console.log('Successfully inserted:', data);
       }
@@ -198,7 +367,7 @@ const App: React.FC = () => {
 
   const clearForm = () => {
     setFormData({
-      id: '',
+      id: uuidv4(),
       title: '',
       curriculum_group_id: '',
       subject: '',
@@ -210,30 +379,14 @@ const App: React.FC = () => {
       application: '',
       assessment: '',
       refs: '',
-      uploaded_by: ''
+      uploaded_by: '',
+      user_name: '',
+      user_email: ''
     });
+    setFiles([]);
     setStatus({ type: '', message: '' });
+    setExistingUserId('');
   };
-
-  if (!supabase) {
-    return (
-      <div className="app">
-        <div className="container">
-          <div className="card">
-            <h1>Supabase Configuration Missing</h1>
-            <div className="error-message">
-              <p>Please set the following environment variables:</p>
-              <ul>
-                <li>REACT_APP_SUPABASE_URL</li>
-                <li>REACT_APP_SUPABASE_ANON_KEY</li>
-              </ul>
-              <p>Create a <code>.env.local</code> file in the project root with these variables.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="app">
@@ -247,23 +400,17 @@ const App: React.FC = () => {
               <h2>Required Fields</h2>
               <div className="form-group">
                 <label htmlFor="id">
-                  ID (UUID) <span className="required">*</span>
+                  ID (UUID) - Auto-generated
                 </label>
-                <div className="input-with-button">
-                  <input
-                    type="text"
-                    id="id"
-                    name="id"
-                    value={formData.id}
-                    onChange={handleInputChange}
-                    onFocus={handleIdFocus}
-                    placeholder="UUID v4 (e.g., 550e8400-e29b-41d4-a716-446655440000)"
-                    required
-                  />
-                  <button type="button" onClick={generateUuid} className="generate-btn">
-                    Generate UUID
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  id="id"
+                  name="id"
+                  value={formData.id}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
+                />
               </div>
 
               <div className="form-group">
@@ -282,21 +429,99 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* User Selection */}
+            <div className="section">
+              <h2>User Information</h2>
+              <div className="form-group">
+                <label>User Mode</label>
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                  <label>
+                    <input
+                      type="radio"
+                      value="existing"
+                      checked={userMode === 'existing'}
+                      onChange={(e) => setUserMode(e.target.value as 'existing' | 'new')}
+                    />
+                    Select Existing User
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      value="new"
+                      checked={userMode === 'new'}
+                      onChange={(e) => setUserMode(e.target.value as 'existing' | 'new')}
+                    />
+                    Create New User
+                  </label>
+                </div>
+              </div>
+
+              {userMode === 'existing' ? (
+                <div className="form-group">
+                  <label htmlFor="existing_user">Select User</label>
+                  <select
+                    id="existing_user"
+                    value={existingUserId}
+                    onChange={(e) => setExistingUserId(e.target.value)}
+                  >
+                    <option value="">-- Select a user --</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label htmlFor="user_name">Name</label>
+                    <input
+                      type="text"
+                      id="user_name"
+                      name="user_name"
+                      value={formData.user_name}
+                      onChange={handleInputChange}
+                      placeholder="Enter user name"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="user_email">Email</label>
+                    <input
+                      type="email"
+                      id="user_email"
+                      name="user_email"
+                      value={formData.user_email}
+                      onChange={handleInputChange}
+                      placeholder="Enter user email"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Optional Fields */}
             <div className="section">
               <h2>Optional Fields</h2>
               <div className="form-grid">
                 <div className="form-group">
-                  <label htmlFor="curriculum_group_id">Curriculum Group ID</label>
-                  <input
-                    type="text"
+                  <label htmlFor="curriculum_group_id">Curriculum Group</label>
+                  <select
                     id="curriculum_group_id"
                     name="curriculum_group_id"
                     value={formData.curriculum_group_id}
                     onChange={handleInputChange}
-                    placeholder="UUID from curriculum_groups table"
-                  />
-                  <small className="hint">Foreign key to curriculum_groups.id</small>
+                  >
+                    <option value="">-- Select a curriculum group --</option>
+                    {curriculumGroups.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  {curriculumGroups.length === 0 && (
+                    <small className="hint">No curriculum groups found. Create them in Supabase first.</small>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -313,40 +538,53 @@ const App: React.FC = () => {
 
                 <div className="form-group">
                   <label htmlFor="target_audience">Target Audience</label>
-                  <input
-                    type="text"
+                  <select
                     id="target_audience"
                     name="target_audience"
                     value={formData.target_audience}
                     onChange={handleInputChange}
-                    placeholder="e.g., High School Students, College Freshmen"
-                  />
+                  >
+                    <option value="">-- Select target audience --</option>
+                    <option value="Elementary">Elementary</option>
+                    <option value="Middle">Middle</option>
+                    <option value="High">High</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="level">Level</label>
-                  <input
-                    type="text"
+                  <select
                     id="level"
                     name="level"
                     value={formData.level}
                     onChange={handleInputChange}
-                    placeholder="e.g., Beginner, Intermediate, Advanced"
-                  />
+                  >
+                    <option value="">-- Select level --</option>
+                    <option value="Foundational">Foundational</option>
+                    <option value="Developing">Developing</option>
+                    <option value="Applied/Transformational">Applied/Transformational</option>
+                  </select>
                 </div>
+              </div>
+            </div>
 
-                <div className="form-group full-width">
-                  <label htmlFor="uploaded_by">Uploaded By (User ID)</label>
-                  <input
-                    type="text"
-                    id="uploaded_by"
-                    name="uploaded_by"
-                    value={formData.uploaded_by}
-                    onChange={handleInputChange}
-                    placeholder="UUID from users table (e.g., 20c35422-07b3-4b87-b7f5-fa54c0e9fe23)"
-                  />
-                  <small className="hint">Foreign key to users.id - The user 'Sejal' has ID: 20c35422-07b3-4b87-b7f5-fa54c0e9fe23</small>
-                </div>
+            {/* File Upload */}
+            <div className="section">
+              <h2>File Attachments</h2>
+              <div className="form-group">
+                <label htmlFor="files">Upload Files (Max 10)</label>
+                <input
+                  type="file"
+                  id="files"
+                  multiple
+                  onChange={handleFileChange}
+                  accept="*/*"
+                />
+                {files.length > 0 && (
+                  <small className="hint">
+                    {files.length} file(s) selected: {files.map(f => f.name).join(', ')}
+                  </small>
+                )}
               </div>
             </div>
 
@@ -384,9 +622,10 @@ const App: React.FC = () => {
                   name="refs"
                   value={formData.refs}
                   onChange={handleInputChange}
-                  placeholder="List references, citations, or external resources"
-                  rows={2}
+                  placeholder="List references (one per line or comma-separated)"
+                  rows={3}
                 />
+                <small className="hint">Enter multiple references separated by commas or new lines</small>
               </div>
             </div>
 
@@ -411,14 +650,13 @@ const App: React.FC = () => {
                 name="materials"
                 value={formData.materials}
                 onChange={handleJsonChange}
-                placeholder={`{
-  "required": ["Textbook", "Calculator", "Notebook"],
-  "optional": ["Computer", "Reference guides"],
-  "resources": {
-    "online": ["Website links", "Videos"],
-    "offline": ["Handouts", "Worksheets"]
-  }
-}`}
+                placeholder={`[
+  "Textbook",
+  "Calculator",
+  "Notebook",
+  "Handouts",
+  "Worksheets"
+]`}
               />
 
               <JsonField
@@ -427,21 +665,10 @@ const App: React.FC = () => {
                 value={formData.teaching_activities}
                 onChange={handleJsonChange}
                 placeholder={`[
-  {
-    "activity": "Introduction",
-    "duration": "10 minutes",
-    "description": "Brief overview of the topic"
-  },
-  {
-    "activity": "Main Content",
-    "duration": "30 minutes",
-    "description": "Detailed explanation with examples"
-  },
-  {
-    "activity": "Practice",
-    "duration": "15 minutes",
-    "description": "Hands-on exercises"
-  }
+  "Introduction - 10 minutes",
+  "Main Content - 30 minutes",
+  "Practice exercises - 15 minutes",
+  "Q&A and Discussion - 10 minutes"
 ]`}
               />
             </div>
