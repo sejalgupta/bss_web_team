@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import './App.css';
 import JsonField from './components/JsonField';
 import StatusMessage from './components/StatusMessage';
-import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User, Topic, AgeGroup } from './types';
+import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User, Topic } from './types';
 
 // Initialize Supabase client
 const supabaseUrl = 'https://cycfjdvszpctjxoosspf.supabase.co';
@@ -31,7 +31,7 @@ const App: React.FC = () => {
     user_name: '',
     user_email: '',
     lesson_number: '',
-    age_group_id: ''
+    new_topic_name: ''
   });
 
   const [jsonValidation, setJsonValidation] = useState<JsonValidation>({
@@ -44,17 +44,16 @@ const App: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [curriculumGroups, setCurriculumGroups] = useState<CurriculumGroup[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [existingUserId, setExistingUserId] = useState<string>('');
   const [userMode, setUserMode] = useState<'existing' | 'new'>('existing');
+  const [topicMode, setTopicMode] = useState<'existing' | 'new'>('existing');
 
-  // Fetch curriculum groups, topics, age groups, and users on component mount
+  // Fetch curriculum groups, topics, and users on component mount
   useEffect(() => {
     fetchCurriculumGroups();
     fetchTopics();
-    fetchAgeGroups();
     fetchUsers();
   }, []);
 
@@ -97,7 +96,7 @@ const App: React.FC = () => {
       const { data, error } = await supabase
         .from('topics')
         .select('*')
-        .order('created_at');
+        .order('topic_number');
 
       if (error) {
         console.error('Error fetching topics:', error);
@@ -109,32 +108,39 @@ const App: React.FC = () => {
     }
   };
 
-  const fetchAgeGroups = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('age_groups')
-        .select('*')
-        .order('id');
-
-      if (error) {
-        console.error('Error fetching age groups:', error);
-      } else {
-        setAgeGroups(data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch age groups:', err);
-    }
+  // Get filtered topics based on selected curriculum group
+  const getFilteredTopics = (): Topic[] => {
+    if (!formData.curriculum_group_id) return [];
+    return topics.filter(topic => topic.relevant_unit === formData.curriculum_group_id);
   };
 
-  // Compute the composite lesson number (unit.lesson.age_group)
+  // Get next topic number for the selected curriculum group
+  const getNextTopicNumber = (): number => {
+    const filteredTopics = getFilteredTopics();
+    if (filteredTopics.length === 0) return 1;
+    const maxNumber = Math.max(...filteredTopics.map(t => t.topic_number || 0));
+    return maxNumber + 1;
+  };
+
+  // Map target audience to number
+  const getTargetAudienceNumber = (audience: string): string => {
+    const mapping: Record<string, string> = {
+      'Elementary': '1',
+      'Middle': '2',
+      'High': '3'
+    };
+    return mapping[audience] || '';
+  };
+
+  // Compute the composite lesson number (unit.lesson.target_audience)
   const getCompositeLessonNumber = (): string => {
     const selectedGroup = curriculumGroups.find(g => g.id === formData.curriculum_group_id);
     const unitNumber = selectedGroup?.unit || '';
     const lessonNumber = formData.lesson_number || '';
-    const ageGroupId = formData.age_group_id || '';
+    const targetAudienceNumber = getTargetAudienceNumber(formData.target_audience);
 
-    if (unitNumber && lessonNumber && ageGroupId) {
-      return `${unitNumber}.${lessonNumber}.${ageGroupId}`;
+    if (unitNumber && lessonNumber && targetAudienceNumber) {
+      return `${unitNumber}.${lessonNumber}.${targetAudienceNumber}`;
     }
     return '';
   };
@@ -312,6 +318,42 @@ const App: React.FC = () => {
         }
       }
 
+      // Handle topic creation if needed
+      let topicId = formData.topic;
+      if (topicMode === 'new' && formData.new_topic_name && formData.curriculum_group_id) {
+        const nextTopicNumber = getNextTopicNumber();
+        const { data: topicData, error: topicError } = await supabase
+          .from('topics')
+          .insert({
+            id: formData.new_topic_name,
+            relevant_unit: formData.curriculum_group_id,
+            topic_number: nextTopicNumber
+          })
+          .select()
+          .single();
+
+        if (topicError) {
+          // Check if topic already exists
+          if (topicError.code === '23505') {
+            const { data: existingTopic } = await supabase
+              .from('topics')
+              .select('id')
+              .eq('id', formData.new_topic_name)
+              .single();
+
+            if (existingTopic) {
+              topicId = existingTopic.id;
+            }
+          } else {
+            throw topicError;
+          }
+        } else if (topicData) {
+          topicId = topicData.id;
+          // Refresh topics list
+          await fetchTopics();
+        }
+      }
+
       // Prepare data for submission
       const submitData: Partial<Lesson> = {
         id: formData.id,
@@ -319,7 +361,7 @@ const App: React.FC = () => {
       };
 
       // Add optional fields
-      if (formData.topic) submitData.topic = formData.topic;
+      if (topicId) submitData.topic = topicId;
       if (formData.curriculum_group_id) submitData.curriculum_group_id = formData.curriculum_group_id;
       if (formData.lesson_number) submitData.lesson_number = parseInt(formData.lesson_number);
       if (formData.subject?.trim()) submitData.subject = formData.subject;
@@ -403,7 +445,7 @@ const App: React.FC = () => {
           user_name: '',
           user_email: '',
           lesson_number: '',
-          age_group_id: ''
+          new_topic_name: ''
         });
         setFiles([]);
         setExistingUserId('');
@@ -443,7 +485,7 @@ const App: React.FC = () => {
       user_name: '',
       user_email: '',
       lesson_number: '',
-      age_group_id: ''
+      new_topic_name: ''
     });
     setFiles([]);
     setStatus({ type: '', message: '' });
@@ -579,7 +621,7 @@ const App: React.FC = () => {
                     Lesson Number: {getCompositeLessonNumber()}
                   </strong>
                   <div style={{ fontSize: '14px', color: '#555', marginTop: '5px' }}>
-                    (Unit.Lesson.AgeGroup)
+                    (Unit.Lesson.TargetAudience) - Elementary=1, Middle=2, High=3
                   </div>
                 </div>
               )}
@@ -605,25 +647,76 @@ const App: React.FC = () => {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="topic">Topic</label>
-                  <select
-                    id="topic"
-                    name="topic"
-                    value={formData.topic}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">-- Select a topic --</option>
-                    {topics.map(topic => (
-                      <option key={topic.id} value={topic.id}>
-                        {topic.id}
-                      </option>
-                    ))}
-                  </select>
-                  {topics.length === 0 && (
-                    <small className="hint">No topics found. Create them in Supabase first.</small>
-                  )}
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>Topic Mode</label>
+                  <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                    <label>
+                      <input
+                        type="radio"
+                        value="existing"
+                        checked={topicMode === 'existing'}
+                        onChange={(e) => setTopicMode(e.target.value as 'existing' | 'new')}
+                      />
+                      Select Existing Topic
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        value="new"
+                        checked={topicMode === 'new'}
+                        onChange={(e) => setTopicMode(e.target.value as 'existing' | 'new')}
+                      />
+                      Create New Topic
+                    </label>
+                  </div>
                 </div>
+
+                {topicMode === 'existing' ? (
+                  <div className="form-group">
+                    <label htmlFor="topic">Topic</label>
+                    <select
+                      id="topic"
+                      name="topic"
+                      value={formData.topic}
+                      onChange={handleInputChange}
+                      disabled={!formData.curriculum_group_id}
+                    >
+                      <option value="">-- Select a topic --</option>
+                      {getFilteredTopics().map(topic => (
+                        <option key={topic.id} value={topic.id}>
+                          {topic.topic_number}. {topic.id}
+                        </option>
+                      ))}
+                    </select>
+                    {!formData.curriculum_group_id && (
+                      <small className="hint">Select a curriculum group first</small>
+                    )}
+                    {formData.curriculum_group_id && getFilteredTopics().length === 0 && (
+                      <small className="hint">No topics for this curriculum group. Create a new one.</small>
+                    )}
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label htmlFor="new_topic_name">New Topic Name</label>
+                    <input
+                      type="text"
+                      id="new_topic_name"
+                      name="new_topic_name"
+                      value={formData.new_topic_name}
+                      onChange={handleInputChange}
+                      placeholder="Enter new topic name"
+                      disabled={!formData.curriculum_group_id}
+                    />
+                    {formData.curriculum_group_id && formData.new_topic_name && (
+                      <small className="hint" style={{ color: '#4caf50' }}>
+                        Will be created as Topic #{getNextTopicNumber()} for this unit
+                      </small>
+                    )}
+                    {!formData.curriculum_group_id && (
+                      <small className="hint">Select a curriculum group first</small>
+                    )}
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label htmlFor="lesson_number">Lesson Number</label>
@@ -639,26 +732,6 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="age_group_id">Age Group</label>
-                  <select
-                    id="age_group_id"
-                    name="age_group_id"
-                    value={formData.age_group_id}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">-- Select an age group --</option>
-                    {ageGroups.map(group => (
-                      <option key={group.id} value={group.id}>
-                        {group.grade_name} (ID: {group.id})
-                      </option>
-                    ))}
-                  </select>
-                  {ageGroups.length === 0 && (
-                    <small className="hint">No age groups found. Create them in Supabase first.</small>
-                  )}
-                </div>
-
-                <div className="form-group">
                   <label htmlFor="subject">Subject</label>
                   <input
                     type="text"
@@ -671,7 +744,7 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="target_audience">Target Audience</label>
+                  <label htmlFor="target_audience">Target Audience (used in numbering)</label>
                   <select
                     id="target_audience"
                     name="target_audience"
@@ -679,9 +752,9 @@ const App: React.FC = () => {
                     onChange={handleInputChange}
                   >
                     <option value="">-- Select target audience --</option>
-                    <option value="Elementary">Elementary</option>
-                    <option value="Middle">Middle</option>
-                    <option value="High">High</option>
+                    <option value="Elementary">Elementary (1)</option>
+                    <option value="Middle">Middle (2)</option>
+                    <option value="High">High (3)</option>
                   </select>
                 </div>
 

@@ -35,7 +35,7 @@ export interface FormData {
   user_name: string;
   user_email: string;
   lesson_number: string;
-  age_group_id: string;
+  new_topic_name: string;
 }
 
 export interface JsonValidation {
@@ -67,12 +67,8 @@ export interface CurriculumGroup {
 export interface Topic {
   id: string;
   relevant_unit: string;
+  topic_number?: number;
   created_at?: string;
-}
-
-export interface AgeGroup {
-  id: number;
-  grade_name: string;
 }
 
 export interface LessonFile {
