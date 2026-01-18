@@ -2,7 +2,6 @@ export interface Lesson {
   id: string;
   title: string;
   topic?: string;
-  curriculum_group_id?: string;
   subject?: string;
   target_audience?: string;
   level?: string;

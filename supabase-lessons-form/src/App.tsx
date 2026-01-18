@@ -365,7 +365,6 @@ const App: React.FC = () => {
 
       // Add optional fields
       if (topicId) submitData.topic = topicId;
-      if (formData.curriculum_group_id) submitData.curriculum_group_id = formData.curriculum_group_id;
       if (formData.lesson_number) submitData.lesson_number = parseInt(formData.lesson_number);
       if (formData.subject?.trim()) submitData.subject = formData.subject;
       if (formData.target_audience) submitData.target_audience = formData.target_audience;
