@@ -132,15 +132,25 @@ const App: React.FC = () => {
     return mapping[audience] || '';
   };
 
-  // Compute the composite lesson number (unit.lesson.target_audience)
+  // Compute the composite lesson number (unit.topic.lesson.target_audience)
   const getCompositeLessonNumber = (): string => {
     const selectedGroup = curriculumGroups.find(g => g.id === formData.curriculum_group_id);
     const unitNumber = selectedGroup?.unit || '';
+
+    // Get topic number
+    let topicNumber = '';
+    if (topicMode === 'existing' && formData.topic) {
+      const selectedTopic = topics.find(t => t.id === formData.topic);
+      topicNumber = selectedTopic?.topic_number?.toString() || '';
+    } else if (topicMode === 'new' && formData.curriculum_group_id) {
+      topicNumber = getNextTopicNumber().toString();
+    }
+
     const lessonNumber = formData.lesson_number || '';
     const targetAudienceNumber = getTargetAudienceNumber(formData.target_audience);
 
-    if (unitNumber && lessonNumber && targetAudienceNumber) {
-      return `${unitNumber}.${lessonNumber}.${targetAudienceNumber}`;
+    if (unitNumber && topicNumber && lessonNumber && targetAudienceNumber) {
+      return `${unitNumber}.${topicNumber}.${lessonNumber}.${targetAudienceNumber}`;
     }
     return '';
   };
@@ -623,7 +633,7 @@ const App: React.FC = () => {
                     Lesson Number: {getCompositeLessonNumber()}
                   </strong>
                   <div style={{ fontSize: '14px', color: '#555', marginTop: '5px' }}>
-                    (Unit.Lesson.TargetAudience) - Elementary=1, Middle=2, High=3
+                    (Unit.Topic.Lesson.Grade) - Elementary=1, Middle=2, High=3
                   </div>
                 </div>
               )}
