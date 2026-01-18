@@ -95,7 +95,7 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('topics')
-        .select('*')
+        .select('id, name, relevant_unit, topic_number, created_at')
         .order('topic_number');
 
       if (error) {
@@ -322,10 +322,12 @@ const App: React.FC = () => {
       let topicId = formData.topic;
       if (topicMode === 'new' && formData.new_topic_name && formData.curriculum_group_id) {
         const nextTopicNumber = getNextTopicNumber();
+        const newTopicId = uuidv4();
         const { data: topicData, error: topicError } = await supabase
           .from('topics')
           .insert({
-            id: formData.new_topic_name,
+            id: newTopicId,
+            name: formData.new_topic_name,
             relevant_unit: formData.curriculum_group_id,
             topic_number: nextTopicNumber
           })
@@ -333,12 +335,13 @@ const App: React.FC = () => {
           .single();
 
         if (topicError) {
-          // Check if topic already exists
+          // Check if topic already exists by name
           if (topicError.code === '23505') {
             const { data: existingTopic } = await supabase
               .from('topics')
               .select('id')
-              .eq('id', formData.new_topic_name)
+              .eq('name', formData.new_topic_name)
+              .eq('relevant_unit', formData.curriculum_group_id)
               .single();
 
             if (existingTopic) {
@@ -684,7 +687,7 @@ const App: React.FC = () => {
                       <option value="">-- Select a topic --</option>
                       {getFilteredTopics().map(topic => (
                         <option key={topic.id} value={topic.id}>
-                          {topic.topic_number}. {topic.id}
+                          {topic.topic_number}. {topic.name || topic.id}
                         </option>
                       ))}
                     </select>

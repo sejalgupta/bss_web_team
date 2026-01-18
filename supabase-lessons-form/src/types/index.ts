@@ -66,6 +66,7 @@ export interface CurriculumGroup {
 
 export interface Topic {
   id: string;
+  name?: string;
   relevant_unit: string;
   topic_number?: number;
   created_at?: string;
