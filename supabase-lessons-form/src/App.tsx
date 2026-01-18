@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import './App.css';
 import JsonField from './components/JsonField';
 import StatusMessage from './components/StatusMessage';
-import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User } from './types';
+import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User, Topic, AgeGroup } from './types';
 
 // Initialize Supabase client
 const supabaseUrl = 'https://cycfjdvszpctjxoosspf.supabase.co';
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     id: uuidv4(), // Auto-generate ID on load
     title: '',
+    topic: '',
     curriculum_group_id: '',
     subject: '',
     target_audience: '',
@@ -28,7 +29,9 @@ const App: React.FC = () => {
     refs: '',
     uploaded_by: '',
     user_name: '',
-    user_email: ''
+    user_email: '',
+    lesson_number: '',
+    age_group_id: ''
   });
 
   const [jsonValidation, setJsonValidation] = useState<JsonValidation>({
@@ -40,14 +43,18 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<Status>({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [curriculumGroups, setCurriculumGroups] = useState<CurriculumGroup[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [existingUserId, setExistingUserId] = useState<string>('');
   const [userMode, setUserMode] = useState<'existing' | 'new'>('existing');
 
-  // Fetch curriculum groups and users on component mount
+  // Fetch curriculum groups, topics, age groups, and users on component mount
   useEffect(() => {
     fetchCurriculumGroups();
+    fetchTopics();
+    fetchAgeGroups();
     fetchUsers();
   }, []);
 
@@ -83,6 +90,53 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch users:', err);
     }
+  };
+
+  const fetchTopics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('topics')
+        .select('*')
+        .order('created_at');
+
+      if (error) {
+        console.error('Error fetching topics:', error);
+      } else {
+        setTopics(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch topics:', err);
+    }
+  };
+
+  const fetchAgeGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('age_groups')
+        .select('*')
+        .order('id');
+
+      if (error) {
+        console.error('Error fetching age groups:', error);
+      } else {
+        setAgeGroups(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch age groups:', err);
+    }
+  };
+
+  // Compute the composite lesson number (unit.lesson.age_group)
+  const getCompositeLessonNumber = (): string => {
+    const selectedGroup = curriculumGroups.find(g => g.id === formData.curriculum_group_id);
+    const unitNumber = selectedGroup?.unit || '';
+    const lessonNumber = formData.lesson_number || '';
+    const ageGroupId = formData.age_group_id || '';
+
+    if (unitNumber && lessonNumber && ageGroupId) {
+      return `${unitNumber}.${lessonNumber}.${ageGroupId}`;
+    }
+    return '';
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -265,7 +319,9 @@ const App: React.FC = () => {
       };
 
       // Add optional fields
+      if (formData.topic) submitData.topic = formData.topic;
       if (formData.curriculum_group_id) submitData.curriculum_group_id = formData.curriculum_group_id;
+      if (formData.lesson_number) submitData.lesson_number = parseInt(formData.lesson_number);
       if (formData.subject?.trim()) submitData.subject = formData.subject;
       if (formData.target_audience) submitData.target_audience = formData.target_audience;
       if (formData.level) submitData.level = formData.level; // Don't trim - must match exact values
@@ -332,6 +388,7 @@ const App: React.FC = () => {
         setFormData({
           id: uuidv4(),
           title: '',
+          topic: '',
           curriculum_group_id: '',
           subject: '',
           target_audience: '',
@@ -344,7 +401,9 @@ const App: React.FC = () => {
           refs: '',
           uploaded_by: '',
           user_name: '',
-          user_email: ''
+          user_email: '',
+          lesson_number: '',
+          age_group_id: ''
         });
         setFiles([]);
         setExistingUserId('');
@@ -369,6 +428,7 @@ const App: React.FC = () => {
     setFormData({
       id: uuidv4(),
       title: '',
+      topic: '',
       curriculum_group_id: '',
       subject: '',
       target_audience: '',
@@ -381,7 +441,9 @@ const App: React.FC = () => {
       refs: '',
       uploaded_by: '',
       user_name: '',
-      user_email: ''
+      user_email: '',
+      lesson_number: '',
+      age_group_id: ''
     });
     setFiles([]);
     setStatus({ type: '', message: '' });
@@ -503,9 +565,28 @@ const App: React.FC = () => {
             {/* Optional Fields */}
             <div className="section">
               <h2>Optional Fields</h2>
+
+              {/* Composite Lesson Number Display */}
+              {getCompositeLessonNumber() && (
+                <div style={{
+                  padding: '15px',
+                  backgroundColor: '#e8f5e9',
+                  borderRadius: '8px',
+                  marginBottom: '20px',
+                  border: '2px solid #4caf50'
+                }}>
+                  <strong style={{ fontSize: '18px', color: '#2e7d32' }}>
+                    Lesson Number: {getCompositeLessonNumber()}
+                  </strong>
+                  <div style={{ fontSize: '14px', color: '#555', marginTop: '5px' }}>
+                    (Unit.Lesson.AgeGroup)
+                  </div>
+                </div>
+              )}
+
               <div className="form-grid">
                 <div className="form-group">
-                  <label htmlFor="curriculum_group_id">Curriculum Group</label>
+                  <label htmlFor="curriculum_group_id">Curriculum Group (Unit)</label>
                   <select
                     id="curriculum_group_id"
                     name="curriculum_group_id"
@@ -515,12 +596,65 @@ const App: React.FC = () => {
                     <option value="">-- Select a curriculum group --</option>
                     {curriculumGroups.map(group => (
                       <option key={group.id} value={group.id}>
-                        {group.name}
+                        {group.name} (Unit {group.unit})
                       </option>
                     ))}
                   </select>
                   {curriculumGroups.length === 0 && (
                     <small className="hint">No curriculum groups found. Create them in Supabase first.</small>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="topic">Topic</label>
+                  <select
+                    id="topic"
+                    name="topic"
+                    value={formData.topic}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">-- Select a topic --</option>
+                    {topics.map(topic => (
+                      <option key={topic.id} value={topic.id}>
+                        {topic.id}
+                      </option>
+                    ))}
+                  </select>
+                  {topics.length === 0 && (
+                    <small className="hint">No topics found. Create them in Supabase first.</small>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="lesson_number">Lesson Number</label>
+                  <input
+                    type="number"
+                    id="lesson_number"
+                    name="lesson_number"
+                    value={formData.lesson_number}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 1, 2, 3..."
+                    min="1"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="age_group_id">Age Group</label>
+                  <select
+                    id="age_group_id"
+                    name="age_group_id"
+                    value={formData.age_group_id}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">-- Select an age group --</option>
+                    {ageGroups.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.grade_name} (ID: {group.id})
+                      </option>
+                    ))}
+                  </select>
+                  {ageGroups.length === 0 && (
+                    <small className="hint">No age groups found. Create them in Supabase first.</small>
                   )}
                 </div>
 

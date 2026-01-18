@@ -1,6 +1,7 @@
 export interface Lesson {
   id: string;
   title: string;
+  topic?: string;
   curriculum_group_id?: string;
   subject?: string;
   target_audience?: string;
@@ -13,11 +14,13 @@ export interface Lesson {
   refs?: string;
   upload_time?: string;
   uploaded_by?: string;
+  lesson_number?: number;
 }
 
 export interface FormData {
   id: string;
   title: string;
+  topic: string;
   curriculum_group_id: string;
   subject: string;
   target_audience: string;
@@ -31,6 +34,8 @@ export interface FormData {
   uploaded_by: string;
   user_name: string;
   user_email: string;
+  lesson_number: string;
+  age_group_id: string;
 }
 
 export interface JsonValidation {
@@ -54,8 +59,20 @@ export interface User {
 export interface CurriculumGroup {
   id: string;
   name: string;
+  unit: number;
   description?: string;
   created_at?: string;
+}
+
+export interface Topic {
+  id: string;
+  relevant_unit: string;
+  created_at?: string;
+}
+
+export interface AgeGroup {
+  id: number;
+  grade_name: string;
 }
 
 export interface LessonFile {
