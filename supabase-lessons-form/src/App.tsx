@@ -176,10 +176,10 @@ const App: React.FC = () => {
     const filesToUpload: Array<{ file: File; materialType: MaterialType }> = [];
 
     if (lessonPlanFile) {
-      filesToUpload.push({ file: lessonPlanFile, materialType: 'lesson_plan' });
+      filesToUpload.push({ file: lessonPlanFile, materialType: 'LESSON_PLAN' });
     }
     if (powerpointFile) {
-      filesToUpload.push({ file: powerpointFile, materialType: 'powerpoint' });
+      filesToUpload.push({ file: powerpointFile, materialType: 'LESSON_PPT' });
     }
 
     const uploadPromises = filesToUpload.map(async ({ file, materialType }) => {
@@ -197,7 +197,7 @@ const App: React.FC = () => {
 
         console.log(`Attempting to upload file: ${file.name} as ${fileName} (${materialType})`);
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('lesson-files')
           .upload(fileName, file, {
             cacheControl: '3600',

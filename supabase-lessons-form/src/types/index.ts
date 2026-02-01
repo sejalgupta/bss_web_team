@@ -29,7 +29,7 @@ export interface FormData {
   new_topic_name: string;
 }
 
-export type MaterialType = 'lesson_plan' | 'powerpoint' | 'other';
+export type MaterialType = 'LESSON_PLAN' | 'LESSON_PPT';
 
 export interface JsonValidation {
   learning_objectives: boolean;
