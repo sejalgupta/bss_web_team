@@ -116,33 +116,113 @@ export default function ModularCourse({ data }: ModularCourseProps) {
                   {/* Expanded Content */}
                   {isExpanded && (
                     <div style={{ padding: '0 24px 24px 24px', paddingTop: '8px', borderTop: '1px solid #f3f4f6' }}>
-                      {/* Description */}
-                      <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6', marginBottom: '16px' }}>
-                        {lesson.description}
-                      </p>
+                      {/* Debug info - remove this later */}
+                      {!lesson.fullData && (
+                        <div style={{ padding: '12px', background: '#fef3c7', borderRadius: '6px', marginBottom: '16px' }}>
+                          <p style={{ fontSize: '13px', color: '#92400e' }}>No detailed lesson data available yet. Please ensure all fields are filled in the data entry form.</p>
+                        </div>
+                      )}
 
-                      {/* Progress Bar */}
-                      {lesson.progress !== undefined && lesson.progress > 0 && (
-                        <div style={{ paddingTop: '8px', marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '12px', color: '#6b7280' }}>Progress</span>
-                            <span style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>{lesson.progress}%</span>
-                          </div>
-                          <div style={{ height: '8px', background: '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
-                            <div
-                              style={{
-                                height: '100%',
-                                background: 'linear-gradient(to right, #ec4899, #a855f7)',
-                                transition: 'all 0.3s',
-                                width: `${lesson.progress}%`
-                              }}
-                            />
-                          </div>
+                      {/* Learning Objectives */}
+                      {lesson.fullData?.learning_objectives && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            Learning Objectives:
+                          </h4>
+                          {Array.isArray(lesson.fullData.learning_objectives) ? (
+                            <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
+                              {lesson.fullData.learning_objectives.map((obj: string, idx: number) => (
+                                <li key={idx} style={{ marginBottom: '4px' }}>{obj}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                              {lesson.fullData.learning_objectives}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Materials */}
+                      {lesson.fullData?.materials && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            Materials (for lesson or associated activities):
+                          </h4>
+                          {Array.isArray(lesson.fullData.materials) ? (
+                            <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
+                              {lesson.fullData.materials.map((material: string, idx: number) => (
+                                <li key={idx} style={{ marginBottom: '4px' }}>{material}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                              {lesson.fullData.materials}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Teaching Activities */}
+                      {lesson.fullData?.teaching_activities && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            Recommended Teaching Activities:
+                          </h4>
+                          {Array.isArray(lesson.fullData.teaching_activities) ? (
+                            <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
+                              {lesson.fullData.teaching_activities.map((activity: string, idx: number) => (
+                                <li key={idx} style={{ marginBottom: '4px' }}>{activity}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                              {lesson.fullData.teaching_activities}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Application */}
+                      {lesson.fullData?.application && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            Application:
+                          </h4>
+                          <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                            {lesson.fullData.application}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Assessment */}
+                      {lesson.fullData?.assessment && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            Assessment:
+                          </h4>
+                          <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                            {lesson.fullData.assessment}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* References */}
+                      {lesson.fullData?.refs && Array.isArray(lesson.fullData.refs) && lesson.fullData.refs.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
+                            References:
+                          </h4>
+                          <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
+                            {lesson.fullData.refs.map((ref: string, idx: number) => (
+                              <li key={idx} style={{ marginBottom: '4px' }}>{ref}</li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
                       {/* Action Buttons */}
-                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f3f4f6' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()

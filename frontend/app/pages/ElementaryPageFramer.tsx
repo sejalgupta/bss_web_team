@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CourseData } from '../types'
 import { fetchCourseData } from '../services/courseServiceFramer'
-import ModularCourse from '../ModularCourse'
+import ModularCourse from '../ModularCourseInline'
 
 export default function ElementaryPage() {
   const [courseData, setCourseData] = useState<CourseData | null>(null)
@@ -12,11 +12,13 @@ export default function ElementaryPage() {
       const result = await fetchCourseData()
       if (result) {
         // Filter for Elementary lessons only
+        // The metadata now includes the target_audience directly (e.g., "Elementary")
         const filtered: CourseData = {
           units: result.units.map(unit => ({
             ...unit,
             lessons: unit.lessons.filter(lesson =>
-              lesson.metadata?.includes('Elementary')
+              lesson.metadata?.includes('Elementary') ||
+              lesson.metadata?.includes('Audience: Elementary')
             )
           })).filter(unit => unit.lessons.length > 0)
         }
@@ -28,28 +30,36 @@ export default function ElementaryPage() {
   }, [])
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       {/* Hero Section - Always Visible */}
-      <div className="bg-blue-50 rounded-xl p-8 mb-8 text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-3">Elementary School</h1>
-        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+      <div style={{ background: '#dbeafe', borderRadius: '12px', padding: '32px', marginBottom: '32px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#111827', marginBottom: '12px' }}>Elementary School</h1>
+        <p style={{ fontSize: '18px', color: '#4b5563', maxWidth: '768px', margin: '0 auto' }}>
           Engaging lessons designed for elementary students. Build foundational skills through interactive activities and hands-on learning experiences.
         </p>
       </div>
 
       {/* Course Content */}
       {loading ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading Elementary courses...</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              border: '3px solid #e5e7eb',
+              borderTopColor: '#111827',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 16px'
+            }} />
+            <p style={{ color: '#4b5563' }}>Loading Elementary courses...</p>
           </div>
         </div>
       ) : courseData && courseData.units.length > 0 ? (
         <ModularCourse data={courseData} useSupabase={false} />
       ) : (
-        <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-          <p className="text-gray-500">No elementary lessons available.</p>
+        <div style={{ textAlign: 'center', padding: '48px', background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+          <p style={{ color: '#6b7280' }}>No elementary lessons available.</p>
         </div>
       )}
     </div>

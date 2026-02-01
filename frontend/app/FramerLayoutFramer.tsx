@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { CourseData, Unit } from './types'
 import { fetchCourseData } from './services/courseServiceFramer'
 import HomePage from './pages/HomePageFramer'
+import logoImage from './assets/gp_logo.png'
 
 interface FramerLayoutProps {
   currentPath: 'home' | 'elementary' | 'middle' | 'high'
@@ -54,10 +55,20 @@ export default function FramerLayout({
   // For home page
   if (currentPath === 'home') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#ffffff' }}>
+      <div style={{ width: '100%', minHeight: '100vh', background: '#ffffff' }}>
         {/* Top Navigation Bar */}
-        <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px' }}>
+        <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', position: 'sticky', top: 0, zIndex: 50 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', marginRight: 'auto' }}>
+              <img
+                src={logoImage}
+                alt="Logo"
+                style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+                onClick={() => onNavigate('/')}
+              />
+            </div>
+
             <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 onClick={() => onNavigate('/')}
@@ -94,10 +105,20 @@ export default function FramerLayout({
 
   // For grade pages with sidebar
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f9fafb' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f9fafb', overflow: 'hidden' }}>
       {/* Top Navigation Bar */}
-      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: 'auto' }}>
+            <img
+              src={logoImage}
+              alt="Logo"
+              style={{ height: '40px', width: 'auto', cursor: 'pointer' }}
+              onClick={() => onNavigate('/')}
+            />
+          </div>
+
           <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
               onClick={() => onNavigate('/')}
@@ -159,9 +180,9 @@ export default function FramerLayout({
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Sidebar */}
-        <aside style={{ width: '256px', background: '#ffffff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <aside style={{ width: '256px', background: '#ffffff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', overflowY: 'auto', flexShrink: 0 }}>
           {/* Units List */}
           <div style={{ flex: 1, padding: '16px' }}>
             <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
@@ -228,8 +249,8 @@ export default function FramerLayout({
         </aside>
 
         {/* Main Content */}
-        <main style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ maxWidth: '896px', margin: '0 auto', padding: '24px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          <div style={{ maxWidth: '896px', margin: '0 auto', padding: '24px', minHeight: '100%' }}>
             {children}
           </div>
         </main>

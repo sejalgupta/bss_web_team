@@ -16,7 +16,8 @@ export default function HighPage() {
           units: result.units.map(unit => ({
             ...unit,
             lessons: unit.lessons.filter(lesson =>
-              lesson.metadata?.includes('High')
+              lesson.metadata?.includes('High') ||
+              lesson.metadata?.includes('Audience: High')
             )
           })).filter(unit => unit.lessons.length > 0)
         }

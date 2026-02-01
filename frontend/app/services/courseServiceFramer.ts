@@ -15,7 +15,7 @@ export async function fetchCourseData(): Promise<CourseData | null> {
 
   try {
     // Fetch curriculum groups
-    const groupsUrl = `${url}/rest/v1/curriculum_groups?order=id.asc`
+    const groupsUrl = `${url}/rest/v1/curriculum_groups?order=unit.asc`
     const groupsRes = await fetch(groupsUrl, {
       headers: {
         apikey: anonKey,
@@ -31,8 +31,23 @@ export async function fetchCourseData(): Promise<CourseData | null> {
 
     const groupsData = await groupsRes.json()
 
+    // Fetch topics with curriculum group info
+    const topicsUrl = `${url}/rest/v1/topics?select=*&order=topic_number.asc`
+    const topicsRes = await fetch(topicsUrl, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    let topicsData = []
+    if (topicsRes.ok) {
+      topicsData = await topicsRes.json()
+    }
+
     // Fetch all lessons
-    const lessonsUrl = `${url}/rest/v1/lessons?order=id.asc`
+    const lessonsUrl = `${url}/rest/v1/lessons?order=lesson_number.asc`
     const lessonsRes = await fetch(lessonsUrl, {
       headers: {
         apikey: anonKey,
@@ -66,8 +81,16 @@ export async function fetchCourseData(): Promise<CourseData | null> {
     // Group lessons by curriculum group
     const units: Unit[] = groupsData.map((group: any) => {
       const groupLessons = lessonsData
-        .filter((lesson: any) => lesson.curriculum_group_id === group.id)
+        .filter((lesson: any) => {
+          // Find the topic for this lesson
+          const topic = topicsData.find((t: any) => t.id === lesson.topic)
+          // Check if topic's relevant_unit matches this curriculum group
+          return topic && topic.relevant_unit === group.id
+        })
         .map((lesson: any) => {
+          // Find the topic for lesson number calculation
+          const topic = topicsData.find((t: any) => t.id === lesson.topic)
+
           // Find associated files
           const lessonFiles = filesData.filter((file: any) => file.lesson_id === lesson.id)
 
@@ -85,10 +108,23 @@ export async function fetchCourseData(): Promise<CourseData | null> {
             f.file_type?.toLowerCase().includes('presentation')
           )
 
+          // Calculate composite lesson number: unit.topic.lesson.grade
+          const targetAudienceMap: Record<string, string> = {
+            'Elementary': '1',
+            'Middle': '2',
+            'High': '3'
+          }
+          const audienceNumber = targetAudienceMap[lesson.target_audience] || ''
+          const topicNumber = topic?.topic_number || ''
+          const compositeNumber = (group.unit && topicNumber && lesson.lesson_number && audienceNumber)
+            ? `${group.unit}.${topicNumber}.${lesson.lesson_number}.${audienceNumber}`
+            : ''
+
           // Build metadata string
           const metadataParts = []
+          if (compositeNumber) metadataParts.push(`#${compositeNumber}`)
           if (lesson.subject) metadataParts.push(`Subject: ${lesson.subject}`)
-          if (lesson.target_audience) metadataParts.push(`Audience: ${lesson.target_audience}`)
+          if (lesson.target_audience) metadataParts.push(lesson.target_audience)
           if (lesson.level) metadataParts.push(`Level: ${lesson.level}`)
           const metadata = metadataParts.join(' • ')
 
@@ -106,13 +142,18 @@ export async function fetchCourseData(): Promise<CourseData | null> {
             description = 'No description available'
           }
 
+          // Clean up title - remove any existing composite number prefix (handles both 3-part and 4-part)
+          const cleanTitle = lesson.title.replace(/^\d+\.\d+\.\d+(\.\d+)?\s*-?\s*/, '')
+
           return {
             id: lesson.id,
-            title: lesson.title,
+            title: cleanTitle,
             description: description,
             metadata: metadata,
             lessonPlanUrl: lessonPlanFile?.file_url,
             pptxUrl: pptxFile?.file_url,
+            // Include full lesson data for expanded view
+            fullData: lesson
           }
         })
 

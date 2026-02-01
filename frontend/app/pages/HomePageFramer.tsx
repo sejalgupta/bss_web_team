@@ -40,7 +40,9 @@ export default function HomePageFramer() {
       background: 'linear-gradient(to bottom right, #f9fafb, #f3f4f6)',
       display: 'flex',
       flexDirection: 'column',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      height: 'auto',
+      paddingBottom: '80px'
     }}>
       {/* Hero Section */}
       <div style={{

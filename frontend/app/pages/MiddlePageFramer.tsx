@@ -16,7 +16,8 @@ export default function MiddlePage() {
           units: result.units.map(unit => ({
             ...unit,
             lessons: unit.lessons.filter(lesson =>
-              lesson.metadata?.includes('Middle')
+              lesson.metadata?.includes('Middle') ||
+              lesson.metadata?.includes('Audience: Middle')
             )
           })).filter(unit => unit.lessons.length > 0)
         }
