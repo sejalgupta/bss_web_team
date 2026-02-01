@@ -7,7 +7,7 @@ import { CourseData, Unit, Lesson } from '../types'
  * Database schema:
  * - curriculum_groups table: { id, name, description }
  * - lessons table: { id, curriculum_group_id, title, subject, target_audience, level, ... }
- * - lesson_files table: { id, lesson_id, file_url, file_type }
+ * - lesson_files table: { id, lesson_id, file_url, file_type, material_type }
  */
 export async function fetchCourseData(): Promise<CourseData | null> {
   try {
@@ -56,19 +56,9 @@ export async function fetchCourseData(): Promise<CourseData | null> {
           // Find associated files for this lesson
           const lessonFiles = filesData?.filter(file => file.lesson_id === lesson.id) || []
 
-          // Get lesson plan and pptx URLs from files
-          const lessonPlanFile = lessonFiles.find(f =>
-            f.file_type?.toLowerCase().includes('plan') ||
-            f.file_type?.toLowerCase() === 'pdf' ||
-            f.file_type?.toLowerCase() === 'doc' ||
-            f.file_type?.toLowerCase() === 'docx'
-          )
-
-          const pptxFile = lessonFiles.find(f =>
-            f.file_type?.toLowerCase().includes('pptx') ||
-            f.file_type?.toLowerCase().includes('ppt') ||
-            f.file_type?.toLowerCase().includes('presentation')
-          )
+          // Get lesson plan and pptx URLs using material_type
+          const lessonPlanFile = lessonFiles.find(f => f.material_type === 'LESSON_PLAN')
+          const pptxFile = lessonFiles.find(f => f.material_type === 'LESSON_PPT')
 
           // Helper function to get public URL from Supabase Storage if needed
           const getPublicUrl = (fileUrl: string | null | undefined) => {

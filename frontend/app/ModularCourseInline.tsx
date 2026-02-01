@@ -143,70 +143,6 @@ export default function ModularCourse({ data }: ModularCourseProps) {
                         </div>
                       )}
 
-                      {/* Materials */}
-                      {lesson.fullData?.materials && (
-                        <div style={{ marginBottom: '20px' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
-                            Materials (for lesson or associated activities):
-                          </h4>
-                          {Array.isArray(lesson.fullData.materials) ? (
-                            <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
-                              {lesson.fullData.materials.map((material: string, idx: number) => (
-                                <li key={idx} style={{ marginBottom: '4px' }}>{material}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
-                              {lesson.fullData.materials}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Teaching Activities */}
-                      {lesson.fullData?.teaching_activities && (
-                        <div style={{ marginBottom: '20px' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
-                            Recommended Teaching Activities:
-                          </h4>
-                          {Array.isArray(lesson.fullData.teaching_activities) ? (
-                            <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
-                              {lesson.fullData.teaching_activities.map((activity: string, idx: number) => (
-                                <li key={idx} style={{ marginBottom: '4px' }}>{activity}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
-                              {lesson.fullData.teaching_activities}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Application */}
-                      {lesson.fullData?.application && (
-                        <div style={{ marginBottom: '20px' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
-                            Application:
-                          </h4>
-                          <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
-                            {lesson.fullData.application}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Assessment */}
-                      {lesson.fullData?.assessment && (
-                        <div style={{ marginBottom: '20px' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>
-                            Assessment:
-                          </h4>
-                          <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                            {lesson.fullData.assessment}
-                          </p>
-                        </div>
-                      )}
-
                       {/* References */}
                       {lesson.fullData?.refs && Array.isArray(lesson.fullData.refs) && lesson.fullData.refs.length > 0 && (
                         <div style={{ marginBottom: '20px' }}>
@@ -214,9 +150,25 @@ export default function ModularCourse({ data }: ModularCourseProps) {
                             References:
                           </h4>
                           <ul style={{ paddingLeft: '20px', fontSize: '14px', color: '#4b5563', lineHeight: '1.8' }}>
-                            {lesson.fullData.refs.map((ref: string, idx: number) => (
-                              <li key={idx} style={{ marginBottom: '4px' }}>{ref}</li>
-                            ))}
+                            {lesson.fullData.refs.map((ref: string, idx: number) => {
+                              const isUrl = ref.startsWith('http://') || ref.startsWith('https://')
+                              return (
+                                <li key={idx} style={{ marginBottom: '4px' }}>
+                                  {isUrl ? (
+                                    <a
+                                      href={ref}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#2563eb', textDecoration: 'underline' }}
+                                    >
+                                      {ref}
+                                    </a>
+                                  ) : (
+                                    ref
+                                  )}
+                                </li>
+                              )
+                            })}
                           </ul>
                         </div>
                       )}

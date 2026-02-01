@@ -83,8 +83,8 @@ export default function FramerComponent({
       const unitsData = groups?.map(group => {
         const groupLessons = lessons?.filter(l => l.curriculum_group_id === group.id).map(lesson => {
           const lessonFiles = files?.filter(f => f.lesson_id === lesson.id) || []
-          const planFile = lessonFiles.find(f => f.file_type?.toLowerCase().includes('plan'))
-          const pptxFile = lessonFiles.find(f => f.file_type?.toLowerCase().includes('pptx'))
+          const planFile = lessonFiles.find(f => f.material_type === 'LESSON_PLAN')
+          const pptxFile = lessonFiles.find(f => f.material_type === 'LESSON_PPT')
 
           // Build metadata
           const metadataParts = []

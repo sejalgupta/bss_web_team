@@ -94,19 +94,9 @@ export async function fetchCourseData(): Promise<CourseData | null> {
           // Find associated files
           const lessonFiles = filesData.filter((file: any) => file.lesson_id === lesson.id)
 
-          // Get lesson plan and pptx URLs
-          const lessonPlanFile = lessonFiles.find((f: any) =>
-            f.file_type?.toLowerCase().includes('plan') ||
-            f.file_type?.toLowerCase() === 'pdf' ||
-            f.file_type?.toLowerCase() === 'doc' ||
-            f.file_type?.toLowerCase() === 'docx'
-          )
-
-          const pptxFile = lessonFiles.find((f: any) =>
-            f.file_type?.toLowerCase().includes('pptx') ||
-            f.file_type?.toLowerCase().includes('ppt') ||
-            f.file_type?.toLowerCase().includes('presentation')
-          )
+          // Get lesson plan and pptx URLs using material_type
+          const lessonPlanFile = lessonFiles.find((f: any) => f.material_type === 'LESSON_PLAN')
+          const pptxFile = lessonFiles.find((f: any) => f.material_type === 'LESSON_PPT')
 
           // Calculate composite lesson number: unit.topic.lesson.grade
           const targetAudienceMap: Record<string, string> = {

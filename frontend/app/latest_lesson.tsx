@@ -39,31 +39,32 @@ export default function LatestLesson() {
                 </ul>
             </div>
 
-            <div className="mt-4">
-                <h3 className="font-semibold">Teaching Activities:</h3>
-                <ul className="list-disc list-inside">
-                    {lesson.teaching_activities?.map((act, i) => (
-                        <li key={i}>{act}</li>
-                    ))}
-                </ul>
-            </div>
-
-            <div className="mt-4">
-                <h3 className="font-semibold">Application:</h3>
-                <p>{lesson.application}</p>
-            </div>
-
-            <div className="mt-4">
-                <h3 className="font-semibold">Assessment:</h3>
-                <p>{lesson.assessment}</p>
-            </div>
-
-            <div className="mt-4">
-                <h3 className="font-semibold">References:</h3>
-                <ul className="list-disc list-inside">
-                    {lesson.refs?.map((ref, i) => <li key={i}>{ref}</li>)}
-                </ul>
-            </div>
+            {lesson.refs && lesson.refs.length > 0 && (
+                <div className="mt-4">
+                    <h3 className="font-semibold">References:</h3>
+                    <ul className="list-disc list-inside">
+                        {lesson.refs.map((ref, i) => {
+                            const isUrl = ref.startsWith('http://') || ref.startsWith('https://')
+                            return (
+                                <li key={i}>
+                                    {isUrl ? (
+                                        <a
+                                            href={ref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 underline hover:text-blue-800"
+                                        >
+                                            {ref}
+                                        </a>
+                                    ) : (
+                                        ref
+                                    )}
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </div>
+            )}
 
             <p className="mt-6 text-sm text-gray-500">
                 Uploaded on: {new Date(lesson.upload_time).toLocaleString()}

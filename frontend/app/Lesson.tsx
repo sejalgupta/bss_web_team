@@ -29,39 +29,29 @@ export default function Lesson({ lesson }) {
                     </div>
                 )}
 
-            {lesson.teaching_activities &&
-                lesson.teaching_activities.length > 0 && (
-                    <div className="mt-4">
-                        <h3 className="font-semibold">Teaching Activities:</h3>
-                        <ul className="list-disc list-inside">
-                            {lesson.teaching_activities.map((act, i) => (
-                                <li key={i}>{act}</li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-            {lesson.application && (
-                <div className="mt-4">
-                    <h3 className="font-semibold">Application:</h3>
-                    <p>{lesson.application}</p>
-                </div>
-            )}
-
-            {lesson.assessment && (
-                <div className="mt-4">
-                    <h3 className="font-semibold">Assessment:</h3>
-                    <p>{lesson.assessment}</p>
-                </div>
-            )}
-
             {lesson.refs && lesson.refs.length > 0 && (
                 <div className="mt-4">
                     <h3 className="font-semibold">References:</h3>
                     <ul className="list-disc list-inside">
-                        {lesson.refs.map((ref, i) => (
-                            <li key={i}>{ref}</li>
-                        ))}
+                        {lesson.refs.map((ref, i) => {
+                            const isUrl = ref.startsWith('http://') || ref.startsWith('https://')
+                            return (
+                                <li key={i}>
+                                    {isUrl ? (
+                                        <a
+                                            href={ref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 underline hover:text-blue-800"
+                                        >
+                                            {ref}
+                                        </a>
+                                    ) : (
+                                        ref
+                                    )}
+                                </li>
+                            )
+                        })}
                     </ul>
                 </div>
             )}
@@ -85,9 +75,6 @@ addPropertyControls(Lesson, {
             target_audience: "Students",
             level: "High",
             learning_objectives: ["Objective 1", "Objective 2"],
-            teaching_activities: ["Activity 1", "Activity 2"],
-            application: "Sample application text",
-            assessment: "Sample assessment text",
             refs: ["Reference 1", "Reference 2"],
             upload_time: new Date().toISOString(),
         },
