@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import './App.css';
-import JsonField from './components/JsonField';
 import StatusMessage from './components/StatusMessage';
-import { FormData, JsonValidation, Status, Lesson, CurriculumGroup, User, Topic } from './types';
+import { FormData, Status, Lesson, CurriculumGroup, User, Topic, MaterialType } from './types';
 
 // Initialize Supabase client
 const supabaseUrl = 'https://cycfjdvszpctjxoosspf.supabase.co';
@@ -22,10 +21,6 @@ const App: React.FC = () => {
     target_audience: '',
     level: '',
     learning_objectives: '',
-    materials: '',
-    teaching_activities: '',
-    application: '',
-    assessment: '',
     refs: '',
     uploaded_by: '',
     user_name: '',
@@ -34,21 +29,17 @@ const App: React.FC = () => {
     new_topic_name: ''
   });
 
-  const [jsonValidation, setJsonValidation] = useState<JsonValidation>({
-    learning_objectives: true,
-    materials: true,
-    teaching_activities: true
-  });
-
   const [status, setStatus] = useState<Status>({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [curriculumGroups, setCurriculumGroups] = useState<CurriculumGroup[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
+  const [lessonPlanFile, setLessonPlanFile] = useState<File | null>(null);
+  const [powerpointFile, setPowerpointFile] = useState<File | null>(null);
   const [existingUserId, setExistingUserId] = useState<string>('');
   const [userMode, setUserMode] = useState<'existing' | 'new'>('existing');
   const [topicMode, setTopicMode] = useState<'existing' | 'new'>('existing');
+  const [formKey, setFormKey] = useState<number>(0);
 
   // Fetch curriculum groups, topics, and users on component mount
   useEffect(() => {
@@ -163,51 +154,51 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleJsonChange = (fieldName: keyof JsonValidation, value: string, isValid: boolean) => {
+  const handleLearningObjectivesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
     setFormData(prev => ({
       ...prev,
-      [fieldName]: value
-    }));
-    setJsonValidation(prev => ({
-      ...prev,
-      [fieldName]: isValid
+      learning_objectives: value
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length > 10) {
-      setStatus({
-        type: 'error',
-        message: 'Maximum 10 files allowed'
-      });
-      return;
-    }
-    setFiles(selectedFiles);
+  const handleLessonPlanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setLessonPlanFile(file);
+  };
+
+  const handlePowerpointChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setPowerpointFile(file);
   };
 
   const uploadFiles = async (lessonId: string) => {
-    const uploadPromises = files.map(async (file, index) => {
+    const filesToUpload: Array<{ file: File; materialType: MaterialType }> = [];
+
+    if (lessonPlanFile) {
+      filesToUpload.push({ file: lessonPlanFile, materialType: 'lesson_plan' });
+    }
+    if (powerpointFile) {
+      filesToUpload.push({ file: powerpointFile, materialType: 'powerpoint' });
+    }
+
+    const uploadPromises = filesToUpload.map(async ({ file, materialType }) => {
       try {
-        // Create a simple, clean file path
         const timestamp = Date.now();
         const fileExt = file.name.split('.').pop() || 'bin';
-        // Very simple sanitization - just alphanumeric and dash
         const sanitizedName = file.name
-          .replace(/\.[^/.]+$/, '') // Remove extension
-          .replace(/[^a-zA-Z0-9]/g, '-') // Replace all non-alphanumeric with dash
-          .replace(/-+/g, '-') // Replace multiple dashes with single
-          .replace(/^-|-$/g, '') // Remove leading/trailing dashes
-          .substring(0, 50); // Shorter limit
+          .replace(/\.[^/.]+$/, '')
+          .replace(/[^a-zA-Z0-9]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .substring(0, 50);
 
-        // Simple file path without subfolder initially to test
-        const fileName = `${timestamp}_${index}_${sanitizedName}.${fileExt}`;
+        const fileName = `${timestamp}_${materialType}_${sanitizedName}.${fileExt}`;
 
-        console.log(`Attempting to upload file: ${file.name} as ${fileName}`);
+        console.log(`Attempting to upload file: ${file.name} as ${fileName} (${materialType})`);
 
-        // Upload file to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('lesson-files') // Using 'lesson-files' bucket
+          .from('lesson-files')
           .upload(fileName, file, {
             cacheControl: '3600',
             upsert: false
@@ -219,27 +210,24 @@ const App: React.FC = () => {
         }
 
         console.log(`File uploaded successfully: ${fileName}`);
-        console.log('Upload response:', uploadData);
 
-        // Get public URL for the uploaded file
         const { data: urlData } = supabase.storage
           .from('lesson-files')
           .getPublicUrl(fileName);
 
         console.log(`Public URL: ${urlData.publicUrl}`);
 
-        // Store file reference in database with original filename in file_type
         const { error: dbError } = await supabase
           .from('lesson_files')
           .insert({
             lesson_id: lessonId,
             file_url: urlData.publicUrl,
-            file_type: file.type || 'application/octet-stream' // Simplified - just store MIME type
+            file_type: file.type || 'application/octet-stream',
+            material_type: materialType
           });
 
         if (dbError) {
           console.error('Error storing file reference in database:', dbError);
-          // Try to delete the uploaded file if database insert fails
           await supabase.storage
             .from('lesson-files')
             .remove([fileName]);
@@ -256,16 +244,6 @@ const App: React.FC = () => {
     await Promise.all(uploadPromises);
   };
 
-  const validateJson = (jsonString: string): { valid: boolean; parsed: any } => {
-    if (!jsonString.trim()) return { valid: true, parsed: null };
-    try {
-      const parsed = JSON.parse(jsonString);
-      return { valid: true, parsed };
-    } catch (e) {
-      return { valid: false, parsed: null };
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -278,12 +256,11 @@ const App: React.FC = () => {
       return;
     }
 
-    // Validate all JSON fields
-    const allJsonValid = Object.values(jsonValidation).every(v => v);
-    if (!allJsonValid) {
+    // Validate that at least lesson plan is uploaded
+    if (!lessonPlanFile) {
       setStatus({
         type: 'error',
-        message: 'Please fix invalid JSON fields before submitting.'
+        message: 'Please upload a lesson plan file.'
       });
       return;
     }
@@ -378,26 +355,25 @@ const App: React.FC = () => {
       if (formData.lesson_number) submitData.lesson_number = parseInt(formData.lesson_number);
       if (formData.subject?.trim()) submitData.subject = formData.subject;
       if (formData.target_audience) submitData.target_audience = formData.target_audience;
-      if (formData.level) submitData.level = formData.level; // Don't trim - must match exact values
-      if (formData.application?.trim()) submitData.application = formData.application;
-      if (formData.assessment?.trim()) submitData.assessment = formData.assessment;
+      if (formData.level) submitData.level = formData.level;
+
+      // Handle learning objectives - convert from textarea (line-separated) to JSONB array
+      if (formData.learning_objectives?.trim()) {
+        const objectives = formData.learning_objectives
+          .split('\n')
+          .map(obj => obj.trim())
+          .filter(obj => obj.length > 0);
+        if (objectives.length > 0) {
+          submitData.learning_objectives = objectives;
+        }
+      }
+
       // Handle refs as array - split by newlines or commas
       if (formData.refs?.trim()) {
-        submitData.refs = formData.refs.split(/[\n,]/).map(ref => ref.trim()).filter(ref => ref.length > 0) as any;
+        submitData.refs = formData.refs.split(/[\n,]/).map(ref => ref.trim()).filter(ref => ref.length > 0);
       }
-      if (userId) submitData.uploaded_by = userId;
 
-      // Parse and add JSON fields
-      const jsonFields: Array<keyof JsonValidation> = ['learning_objectives', 'materials', 'teaching_activities'];
-      jsonFields.forEach(field => {
-        const value = formData[field];
-        if (value?.trim()) {
-          const { parsed } = validateJson(value);
-          if (parsed !== null) {
-            (submitData as any)[field] = parsed;
-          }
-        }
-      });
+      if (userId) submitData.uploaded_by = userId;
 
       // Insert lesson data
       const { data, error } = await supabase
@@ -412,29 +388,23 @@ const App: React.FC = () => {
           message: `Error: ${error.message}`
         });
       } else {
-        // Upload files if any
-        if (files.length > 0) {
-          try {
-            setStatus({
-              type: '',
-              message: 'Uploading files...'
-            });
-            await uploadFiles(formData.id);
-            setStatus({
-              type: 'success',
-              message: `Lesson added successfully! ${files.length} file(s) uploaded.`
-            });
-          } catch (fileError: any) {
-            console.error('File upload error details:', fileError);
-            setStatus({
-              type: 'error',
-              message: `Lesson saved but file upload failed: ${fileError.message}. Please run the setup_storage.sql script in Supabase SQL Editor to configure storage policies.`
-            });
-          }
-        } else {
+        // Upload files
+        try {
+          setStatus({
+            type: '',
+            message: 'Uploading files...'
+          });
+          await uploadFiles(formData.id);
+          const fileCount = (lessonPlanFile ? 1 : 0) + (powerpointFile ? 1 : 0);
           setStatus({
             type: 'success',
-            message: 'Lesson added successfully!'
+            message: `Lesson added successfully! ${fileCount} file(s) uploaded.`
+          });
+        } catch (fileError: any) {
+          console.error('File upload error details:', fileError);
+          setStatus({
+            type: 'error',
+            message: `Lesson saved but file upload failed: ${fileError.message}. Please run the setup_storage.sql script in Supabase SQL Editor to configure storage policies.`
           });
         }
 
@@ -448,10 +418,6 @@ const App: React.FC = () => {
           target_audience: '',
           level: '',
           learning_objectives: '',
-          materials: '',
-          teaching_activities: '',
-          application: '',
-          assessment: '',
           refs: '',
           uploaded_by: '',
           user_name: '',
@@ -459,8 +425,10 @@ const App: React.FC = () => {
           lesson_number: '',
           new_topic_name: ''
         });
-        setFiles([]);
+        setLessonPlanFile(null);
+        setPowerpointFile(null);
         setExistingUserId('');
+        setFormKey(prev => prev + 1);
 
         // Refresh users list
         fetchUsers();
@@ -488,10 +456,6 @@ const App: React.FC = () => {
       target_audience: '',
       level: '',
       learning_objectives: '',
-      materials: '',
-      teaching_activities: '',
-      application: '',
-      assessment: '',
       refs: '',
       uploaded_by: '',
       user_name: '',
@@ -499,9 +463,11 @@ const App: React.FC = () => {
       lesson_number: '',
       new_topic_name: ''
     });
-    setFiles([]);
+    setLessonPlanFile(null);
+    setPowerpointFile(null);
     setStatus({ type: '', message: '' });
     setExistingUserId('');
+    setFormKey(prev => prev + 1);
   };
 
   return (
@@ -510,7 +476,7 @@ const App: React.FC = () => {
         <div className="card">
           <h1>Supabase Lessons Data Entry</h1>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} key={formKey}>
             {/* Required Fields */}
             <div className="section">
               <h2>Required Fields</h2>
@@ -791,49 +757,59 @@ const App: React.FC = () => {
             <div className="section">
               <h2>File Attachments</h2>
               <div className="form-group">
-                <label htmlFor="files">Upload Files (Max 10)</label>
+                <label htmlFor="lesson_plan">
+                  Lesson Plan <span className="required">*</span>
+                </label>
                 <input
                   type="file"
-                  id="files"
-                  multiple
-                  onChange={handleFileChange}
-                  accept="*/*"
+                  id="lesson_plan"
+                  onChange={handleLessonPlanChange}
+                  accept=".pdf,.doc,.docx,.txt"
+                  required
                 />
-                {files.length > 0 && (
-                  <small className="hint">
-                    {files.length} file(s) selected: {files.map(f => f.name).join(', ')}
+                {lessonPlanFile && (
+                  <small className="hint" style={{ color: '#4caf50' }}>
+                    Selected: {lessonPlanFile.name}
+                  </small>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="powerpoint">PowerPoint (Optional)</label>
+                <input
+                  type="file"
+                  id="powerpoint"
+                  onChange={handlePowerpointChange}
+                  accept=".ppt,.pptx"
+                />
+                {powerpointFile && (
+                  <small className="hint" style={{ color: '#4caf50' }}>
+                    Selected: {powerpointFile.name}
                   </small>
                 )}
               </div>
             </div>
 
-            {/* Text Fields */}
+            {/* Learning Objectives */}
             <div className="section">
-              <h2>Content Fields</h2>
+              <h2>Learning Objectives</h2>
               <div className="form-group">
-                <label htmlFor="application">Application</label>
+                <label htmlFor="learning_objectives">Learning Objectives</label>
                 <textarea
-                  id="application"
-                  name="application"
-                  value={formData.application}
-                  onChange={handleInputChange}
-                  placeholder="How can this lesson be applied in real-world scenarios?"
-                  rows={3}
+                  id="learning_objectives"
+                  name="learning_objectives"
+                  value={formData.learning_objectives}
+                  onChange={handleLearningObjectivesChange}
+                  placeholder="Enter one learning objective per line, e.g.:&#10;Understand basic concepts&#10;Apply knowledge to real-world scenarios&#10;Develop critical thinking skills"
+                  rows={6}
                 />
+                <small className="hint">Enter one objective per line. Will be stored as a list.</small>
               </div>
+            </div>
 
-              <div className="form-group">
-                <label htmlFor="assessment">Assessment</label>
-                <textarea
-                  id="assessment"
-                  name="assessment"
-                  value={formData.assessment}
-                  onChange={handleInputChange}
-                  placeholder="Describe assessment methods and criteria"
-                  rows={3}
-                />
-              </div>
-
+            {/* References */}
+            <div className="section">
+              <h2>References</h2>
               <div className="form-group">
                 <label htmlFor="refs">References</label>
                 <textarea
@@ -848,49 +824,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* JSON Fields */}
-            <div className="section">
-              <h2>JSON Data Fields</h2>
-
-              <JsonField
-                label="Learning Objectives"
-                name="learning_objectives"
-                value={formData.learning_objectives}
-                onChange={handleJsonChange}
-                placeholder={`[
-  "Understand basic concepts",
-  "Apply knowledge to real-world scenarios",
-  "Develop critical thinking skills"
-]`}
-              />
-
-              <JsonField
-                label="Materials"
-                name="materials"
-                value={formData.materials}
-                onChange={handleJsonChange}
-                placeholder={`[
-  "Textbook",
-  "Calculator",
-  "Notebook",
-  "Handouts",
-  "Worksheets"
-]`}
-              />
-
-              <JsonField
-                label="Teaching Activities"
-                name="teaching_activities"
-                value={formData.teaching_activities}
-                onChange={handleJsonChange}
-                placeholder={`[
-  "Introduction - 10 minutes",
-  "Main Content - 30 minutes",
-  "Practice exercises - 15 minutes",
-  "Q&A and Discussion - 10 minutes"
-]`}
-              />
-            </div>
 
             {/* Status Message */}
             <StatusMessage type={status.type} message={status.message} />

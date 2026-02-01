@@ -6,11 +6,7 @@ export interface Lesson {
   target_audience?: string;
   level?: string;
   learning_objectives?: any;
-  materials?: any;
-  teaching_activities?: any;
-  application?: string;
-  assessment?: string;
-  refs?: string;
+  refs?: string[];
   upload_time?: string;
   uploaded_by?: string;
   lesson_number?: number;
@@ -25,10 +21,6 @@ export interface FormData {
   target_audience: string;
   level: string;
   learning_objectives: string;
-  materials: string;
-  teaching_activities: string;
-  application: string;
-  assessment: string;
   refs: string;
   uploaded_by: string;
   user_name: string;
@@ -37,10 +29,10 @@ export interface FormData {
   new_topic_name: string;
 }
 
+export type MaterialType = 'lesson_plan' | 'powerpoint' | 'other';
+
 export interface JsonValidation {
   learning_objectives: boolean;
-  materials: boolean;
-  teaching_activities: boolean;
 }
 
 export interface Status {
@@ -76,5 +68,6 @@ export interface LessonFile {
   lesson_id?: string;
   file_url: string;
   file_type: string;
+  material_type?: MaterialType;
   uploaded_at?: string;
 }

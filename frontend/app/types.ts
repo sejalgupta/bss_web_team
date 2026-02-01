@@ -9,6 +9,7 @@ export interface Lesson {
   completed?: boolean
   lessonPlanUrl?: string
   pptxUrl?: string
+  fullData?: any
 }
 
 export interface Unit {
